@@ -408,7 +408,7 @@ impl<Game: Oracle> Component for Client<Game> {
                 <div onclick={stop_propagation} oncontextmenu={stop_propagation}>
                     <h2>
                         { "Mindsweeper — a "}
-                        <a href="https://github.com/alexbuz/minesweeper/" target="_blank">
+                        <a href="https://github.com/alexbuz/mindsweeper/" target="_blank">
                             { "principled" }
                         </a>
                         { " take on minesweeper" }
