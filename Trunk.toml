@@ -1,0 +1,4 @@
+[build]
+release = true
+public_url = "./"
+filehash = true

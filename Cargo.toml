@@ -1,0 +1,39 @@
+[package]
+name = "mindsweeper"
+version = "1.0.0"
+edition = "2021"
+
+[profile.release]
+opt-level = 3
+codegen-units = 1
+lto = true
+strip = true
+
+[dependencies]
+rand = "0.8.5"
+getrandom = { version = "0.2.10", features = ["js"] }
+itertools = "0.12.0"
+num = { version = "0.4.1", features = ["rand"] }
+rayon = "1.7.0"
+yew = { version = "0.21.0", features = ["csr"] }
+web-sys = { version = "0.3.64", features = [
+    "HtmlSelectElement",
+    "HtmlDialogElement",
+] }
+js-sys = "0.3.64"
+wasm-bindgen = "0.2.87"
+serde = { version = "1.0.188", features = ["derive"] }
+serde_json = "1.0.106"
+float-ord = "0.3.2"
+thiserror = "1.0.48"
+gloo = "0.11.0"
+tinyvec = "1.6.0"
+strum = { version = "0.25.0", features = ["derive"] }
+yew-agent = "0.3.0"
+
+[dev-dependencies]
+criterion = { version = "0.5.1", features = ["real_blackbox"] }
+
+[[bench]]
+name = "solvable_bench"
+harness = false
