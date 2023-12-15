@@ -1,6 +1,6 @@
 # Mindsweeper — a principled take on minesweeper
 
-To play, visit https://alexbuz.github.io/minesweeper/. Once the page loads, no further internet connection is required.
+To play, visit https://alexbuz.github.io/mindsweeper/. Once the page loads, no further internet connection is required.
 
 ## Background
 
@@ -35,4 +35,6 @@ cd mindsweeper
 trunk build
 ```
 
-The built files will be placed in the `dist`, the contents of which is served by GitHub Pages when you visit https://alexbuz.github.io/minesweeper/ to play the game.
+The built files will be placed in the `dist` directory, the contents of which must be placed in `docs` to be served by GitHub Pages.
+
+For development, instead of `trunk build`, you can run `trunk serve --public-url=/ --open` to start a local server that automatically rebuilds the project when you make changes.
