@@ -4,7 +4,7 @@ use crate::{
     utils::*,
 };
 use itertools::{izip, Itertools};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use tinyvec::array_vec;
 

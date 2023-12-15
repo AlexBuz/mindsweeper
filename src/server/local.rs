@@ -6,8 +6,8 @@ use super::*;
 use itertools::{chain, izip, repeat_n};
 use num::{BigUint, One};
 use rand::{distributions::WeightedError, seq::SliceRandom};
+use serde::{Deserialize, Serialize};
 use tinyvec::ArrayVec;
-use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 enum Tile {
@@ -524,8 +524,8 @@ mod tests {
     fn win_all_games_with_punishment() {
         win_all_games(GameConfig {
             grid_config: GridConfig::expert(),
-            mode: GameMode::Normal,
             punish_guessing: true,
+            ..Default::default()
         })
     }
 
@@ -533,8 +533,8 @@ mod tests {
     fn win_all_games_without_punishment() {
         win_all_games(GameConfig {
             grid_config: GridConfig::expert(),
-            mode: GameMode::Normal,
             punish_guessing: false,
+            ..Default::default()
         })
     }
 }
