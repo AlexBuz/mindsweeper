@@ -6,7 +6,7 @@ use gloo::{
 use itertools::Itertools;
 use js_sys::Date;
 use mindsweeper::server::GameConfig;
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fmt};
 use yew::prelude::*;
 
 #[derive(Debug, PartialEq)]
@@ -41,6 +41,25 @@ impl Timer {
             _ => 0.0,
         };
         elapsed_ms / 1000.0
+    }
+}
+
+struct TimerElapsed(f64);
+
+impl fmt::Display for TimerElapsed {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let cs = (self.0 % 1.0 * 100.0) as u64;
+        let s = (self.0 % 60.0) as u64;
+        let mut m = (self.0 / 60.0) as u64;
+
+        let h = m / 60;
+        m %= 60;
+
+        if h > 0 {
+            write!(f, "{h:02}:")?;
+        }
+
+        write!(f, "{m:02}:{s:02}.{cs:02}")
     }
 }
 
@@ -108,7 +127,7 @@ impl Component for Timer {
         let mut timer_classes = classes!("timer");
         let content = if let TimerMode::Reset = props.timer_mode {
             match best {
-                Some(best) => format!("Best: {best:.02}"),
+                Some(best) => format!("Best: {}", TimerElapsed(best)),
                 None => String::from("Best: N/A"),
             }
         } else {
@@ -118,7 +137,7 @@ impl Component for Timer {
                     timer_classes.push("bg-green");
                 }
             }
-            format!("Time: {time:.02}")
+            format!("Time: {}", TimerElapsed(time))
         };
         html! {
             <span class={timer_classes}>

@@ -70,6 +70,7 @@ thead td {
 .timer {
     padding: 1px 3px;
     border-radius: 3px;
+    font-family: 'Courier New', Courier, monospace;
 }
 
 tbody:not(.punish-guessing) {
