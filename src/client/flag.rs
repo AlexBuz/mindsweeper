@@ -39,6 +39,10 @@ impl FlagStore {
         self.flags.contains_key(&tile_id)
     }
 
+    pub fn insert_tentative(&mut self, tile_id: usize) {
+        self.flags.insert(tile_id, Flag::Tentative);
+    }
+
     pub fn insert_permanent(&mut self, tile_id: usize) {
         self.flags.insert(tile_id, Flag::Permanent);
     }

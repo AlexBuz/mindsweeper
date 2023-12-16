@@ -158,19 +158,19 @@ impl<Game: Oracle> Client<Game> {
         match game.adjacent_mine_count(tile_id) {
             Some(adjacent_mine_count) => {
                 let mut adjacent_flag_count = 0;
-                let mut adjacent_unknown_tile_ids = array_vec!([usize; 8]);
+                let mut adjacent_hidden_tile_ids = array_vec!([usize; 8]);
                 for adjacent_tile_id in self.game_config.grid_config.iter_adjacent(tile_id) {
                     if self.flags.contains(adjacent_tile_id) {
                         adjacent_flag_count += 1;
                     } else if game.adjacent_mine_count(adjacent_tile_id).is_none() {
-                        adjacent_unknown_tile_ids.push(adjacent_tile_id)
+                        adjacent_hidden_tile_ids.push(adjacent_tile_id)
                     }
                 }
                 if adjacent_mine_count != adjacent_flag_count {
                     return;
                 }
-                game.chord(tile_id, &adjacent_unknown_tile_ids);
-                for hidden_tile_id in adjacent_unknown_tile_ids {
+                game.chord(tile_id, &adjacent_hidden_tile_ids);
+                for hidden_tile_id in adjacent_hidden_tile_ids {
                     self.last_revealed.push(hidden_tile_id);
                 }
             }
@@ -196,7 +196,7 @@ impl<Game: Oracle> Client<Game> {
                         game.adjacent_mine_count(adjacent_tile_id).is_none()
                     })
                     .collect_vec();
-                if adjacent_hidden_tile_ids.len() == number as usize {
+                if number == adjacent_hidden_tile_ids.len() as u8 {
                     for adjacent_tile_id in adjacent_hidden_tile_ids {
                         self.flags.insert_permanent(adjacent_tile_id);
                     }
@@ -207,8 +207,27 @@ impl<Game: Oracle> Client<Game> {
 
     fn right_click(&mut self, tile_id: usize) {
         if let Some(game) = &self.game {
-            if game.adjacent_mine_count(tile_id).is_none() {
-                self.flags.toggle(tile_id);
+            match game.adjacent_mine_count(tile_id) {
+                Some(adjacent_mine_count) => {
+                    let mut adjacent_flag_count = 0;
+                    let mut adjacent_hidden_tile_ids = array_vec!([usize; 8]);
+                    for adjacent_tile_id in self.game_config.grid_config.iter_adjacent(tile_id) {
+                        if self.flags.contains(adjacent_tile_id) {
+                            adjacent_flag_count += 1;
+                        } else if game.adjacent_mine_count(adjacent_tile_id).is_none() {
+                            adjacent_hidden_tile_ids.push(adjacent_tile_id)
+                        }
+                    }
+                    if adjacent_flag_count + adjacent_hidden_tile_ids.len() as u8
+                        == adjacent_mine_count
+                    {
+                        for hidden_tile_id in adjacent_hidden_tile_ids {
+                            // tentative flag because this cannot be reached in autopilot mode
+                            self.flags.insert_tentative(hidden_tile_id);
+                        }
+                    }
+                }
+                None => self.flags.toggle(tile_id),
             }
         }
     }
@@ -228,27 +247,25 @@ impl<Game: Oracle> Client<Game> {
         if let Some(game) = self.game.as_ref() {
             if let Some(adjacent_mine_count) = game.adjacent_mine_count(tile_id) {
                 tile_classes.push("revealed");
-
                 if adjacent_mine_count > 0 {
-                    let display_count = if self.theme.subtract_flags {
-                        let adjacent_flags: u8 = self
-                            .game_config
+                    let subtrahend = if self.theme.subtract_flags {
+                        self.game_config
                             .grid_config
                             .iter_adjacent(tile_id)
-                            .map(|tile_id| u8::from(self.flags.get(tile_id).is_some()))
-                            .sum();
-
-                        adjacent_mine_count.checked_sub(adjacent_flags)
+                            .filter(|&adjacent_tile_id| self.flags.contains(adjacent_tile_id))
+                            .count() as u8
                     } else {
-                        Some(adjacent_mine_count)
+                        0
                     };
-
-                    if let Some(count) = display_count {
-                        tile_classes.push(format!("number-{count}"));
-                        tile_contents.push(self.theme.numbers_style.render(count));
-                    } else {
-                        tile_classes.push("text-red");
-                        tile_contents.push('?')
+                    match adjacent_mine_count.checked_sub(subtrahend) {
+                        Some(count) => {
+                            tile_classes.push(format!("number-{count}"));
+                            tile_contents.push(self.theme.numbers_style.render(count));
+                        }
+                        None => {
+                            tile_classes.push("text-red");
+                            tile_contents.push('?')
+                        }
                     }
                 }
             } else if game.status().is_won() {
