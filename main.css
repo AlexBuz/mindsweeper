@@ -70,7 +70,11 @@ thead td {
 .timer {
     padding: 1px 3px;
     border-radius: 3px;
-    font-family: 'Courier New', Courier, monospace;
+    font-family: 'Menlo', 'Consolas', monospace;
+}
+
+.timer.faded {
+    color: gray;
 }
 
 tbody:not(.punish-guessing) {

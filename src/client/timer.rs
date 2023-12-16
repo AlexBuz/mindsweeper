@@ -125,11 +125,9 @@ impl Component for Timer {
         let props = ctx.props();
         let best = self.best_times.get(&props.game_config).copied();
         let mut timer_classes = classes!("timer");
-        let content = if let TimerMode::Reset = props.timer_mode {
-            match best {
-                Some(best) => format!("Best: {}", TimerElapsed(best)),
-                None => String::from("Best: N/A"),
-            }
+        let time = if let TimerMode::Reset = props.timer_mode {
+            timer_classes.push("faded");
+            best
         } else {
             let time = self.elapsed_secs();
             if let TimerMode::Stopped { won_game: true } = props.timer_mode {
@@ -137,11 +135,15 @@ impl Component for Timer {
                     timer_classes.push("bg-green");
                 }
             }
-            format!("Time: {}", TimerElapsed(time))
+            Some(time)
         };
         html! {
             <span class={timer_classes}>
-                { content }
+                { if let Some(time) = time {
+                    html! { <> { TimerElapsed(time) } </> }
+                } else {
+                    html! { <> { "--:--.--" } </> }
+                } }
             </span>
         }
     }
