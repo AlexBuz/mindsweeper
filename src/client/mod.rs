@@ -25,11 +25,11 @@ pub enum Msg {
     ShowDialog,
     CloseDialog,
     NewGame,
-    SetNumbersStyle(NumbersStyle),
     SetGridConfig(GridConfig),
     SetGameMode(GameMode),
     SetPunishGuessing(bool),
-    SetCountFlags(bool),
+    SetNumbersStyle(NumbersStyle),
+    SetSubtractFlags(bool),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default, EnumIter, Display)]
@@ -48,15 +48,12 @@ impl NumbersStyle {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+#[serde(default)]
 struct Theme {
-    #[serde(default)]
     numbers_style: NumbersStyle,
+    subtract_flags: bool,
 }
-
-static DEFAULT_THEME: Theme = Theme {
-    numbers_style: NumbersStyle::Digits,
-};
 
 pub struct Client<Game: Oracle> {
     dialog_ref: NodeRef,
@@ -222,7 +219,7 @@ impl<Game: Oracle> Client<Game> {
                 tile_classes.push("revealed");
 
                 if adjacent_mine_count > 0 {
-                    let display_count = if self.game_config.count_flags {
+                    let display_count = if self.theme.subtract_flags {
                         let adjacent_flags: u8 = self
                             .game_config
                             .grid_config
@@ -342,7 +339,7 @@ impl<Game: Oracle> Component for Client<Game> {
             should_show_dialog: stored_game_config.is_err()
                 || !LocalStorage::get::<bool>(storage_keys::CLOSED_DIALOG).unwrap_or_default(),
             game_config: stored_game_config.unwrap_or_default(),
-            theme: LocalStorage::get(storage_keys::THEME).unwrap_or(DEFAULT_THEME),
+            theme: LocalStorage::get(storage_keys::THEME).unwrap_or_default(),
             prepared_game: None,
             game: None,
             flags: FlagStore::new(),
@@ -388,10 +385,6 @@ impl<Game: Oracle> Component for Client<Game> {
             Msg::ShowDialog => self.show_dialog(),
             Msg::CloseDialog => self.close_dialog(),
             Msg::NewGame => self.new_game(),
-            Msg::SetNumbersStyle(style) => {
-                self.theme.numbers_style = style;
-                self.save_theme();
-            }
             Msg::SetGridConfig(config) => {
                 self.game_config.grid_config = config;
                 self.save_game_config();
@@ -407,10 +400,13 @@ impl<Game: Oracle> Component for Client<Game> {
                 self.save_game_config();
                 self.new_game();
             }
-            Msg::SetCountFlags(value) => {
-                self.game_config.count_flags = value;
-                self.save_game_config();
-                self.new_game();
+            Msg::SetNumbersStyle(style) => {
+                self.theme.numbers_style = style;
+                self.save_theme();
+            }
+            Msg::SetSubtractFlags(value) => {
+                self.theme.subtract_flags = value;
+                self.save_theme();
             }
         }
         true
@@ -548,24 +544,6 @@ impl<Game: Oracle> Component for Client<Game> {
                                 </li>
                             </ul>
                         </li>
-                        <li>
-                            <label>
-                                { "Count flags: " }
-                                <input
-                                    type="checkbox"
-                                    name="count_flags"
-                                    checked={self.game_config.count_flags}
-                                    onchange={scope.callback(|e: Event|
-                                        Msg::SetCountFlags(e.target_unchecked_into::<HtmlInputElement>().checked())
-                                    )}/>
-                            </label>
-                            <ul>
-                                <li>
-                                    { "The displayed neighbouring mine count will account for neighbouring flags." }
-                                    { "This is very similar to autopilot, but slightly less intrusive." }
-                                </li>
-                            </ul>
-                        </li>
                     </ul>
                     <h2>
                         { "Theme" }
@@ -591,6 +569,25 @@ impl<Game: Oracle> Component for Client<Game> {
                                         })
                                     } </select>
                             </label>
+                        </li>
+                        <li>
+                            <label>
+                                { "Subtract flags: " }
+                                <input
+                                    type="checkbox"
+                                    name="subtract_flags"
+                                    checked={self.theme.subtract_flags}
+                                    onchange={scope.callback(|e: Event|
+                                        Msg::SetSubtractFlags(
+                                            e.target_unchecked_into::<HtmlInputElement>().checked()
+                                        )
+                                    )}/>
+                            </label>
+                            <ul>
+                                <li>
+                                    { "This subtracts the number of adjacent flags from the number displayed on each revealed tile, so that you can see at a glance how many flags you have left to place." }
+                                </li>
+                            </ul>
                         </li>
                     </ul>
                     <form method="dialog">

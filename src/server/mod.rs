@@ -205,7 +205,6 @@ pub struct GameConfig {
     pub grid_config: GridConfig,
     pub mode: GameMode,
     pub punish_guessing: bool,
-    pub count_flags: bool,
 }
 
 impl Default for GameConfig {
@@ -214,7 +213,6 @@ impl Default for GameConfig {
             grid_config: Default::default(),
             mode: Default::default(),
             punish_guessing: true,
-            count_flags: false,
         }
     }
 }
