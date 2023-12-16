@@ -1,4 +1,4 @@
-use super::storage_keys;
+use super::{storage_keys, ShowTimer};
 use gloo::{
     storage::{LocalStorage, Storage},
     timers::callback::Interval,
@@ -18,6 +18,7 @@ pub enum TimerMode {
 
 #[derive(Debug, PartialEq, Properties)]
 pub struct TimerProps {
+    pub show_timer: ShowTimer,
     pub game_config: GameConfig,
     pub timer_mode: TimerMode,
 }
@@ -83,7 +84,8 @@ impl Component for Timer {
         let new_props = ctx.props();
         if old_props.timer_mode == new_props.timer_mode {
             return new_props.timer_mode == TimerMode::Running
-                || old_props.game_config != new_props.game_config;
+                || old_props.game_config != new_props.game_config
+                || old_props.show_timer != new_props.show_timer;
         }
         match new_props.timer_mode {
             TimerMode::Reset => {
@@ -123,11 +125,18 @@ impl Component for Timer {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let props = ctx.props();
+        if props.show_timer == ShowTimer::Never {
+            return html! {};
+        }
         let best = self.best_times.get(&props.game_config).copied();
         let mut timer_classes = classes!("timer");
-        let time = if let TimerMode::Reset = props.timer_mode {
+        let time = if props.timer_mode == TimerMode::Reset {
             timer_classes.push("faded");
             best
+        } else if props.timer_mode == TimerMode::Running
+            && props.show_timer == ShowTimer::OnGameOver
+        {
+            None
         } else {
             let time = self.elapsed_secs();
             if let TimerMode::Stopped { won_game: true } = props.timer_mode {

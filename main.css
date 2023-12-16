@@ -23,7 +23,7 @@ dialog {
     border: none;
     box-shadow: 0 0 16px gray;
     border-radius: 20px;
-    max-width: calc(min(80ch, 90vw));
+    max-width: calc(min(90ch, 90vw));
     max-height: 90vh;
     padding: 0;
 }

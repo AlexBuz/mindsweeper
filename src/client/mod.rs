@@ -28,6 +28,7 @@ pub enum Msg {
     SetGridConfig(GridConfig),
     SetGameMode(GameMode),
     SetPunishGuessing(bool),
+    SetShowTimer(ShowTimer),
     SetNumbersStyle(NumbersStyle),
     SetSubtractFlags(bool),
 }
@@ -48,9 +49,19 @@ impl NumbersStyle {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default, EnumIter, Display)]
+pub enum ShowTimer {
+    #[default]
+    Always,
+    Never,
+    #[strum(serialize = "On game over")]
+    OnGameOver,
+}
+
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
 #[serde(default)]
 struct Theme {
+    show_timer: ShowTimer,
     numbers_style: NumbersStyle,
     subtract_flags: bool,
 }
@@ -400,6 +411,10 @@ impl<Game: Oracle> Component for Client<Game> {
                 self.save_game_config();
                 self.new_game();
             }
+            Msg::SetShowTimer(show_timer) => {
+                self.theme.show_timer = show_timer;
+                self.save_theme();
+            }
             Msg::SetNumbersStyle(style) => {
                 self.theme.numbers_style = style;
                 self.save_theme();
@@ -446,7 +461,7 @@ impl<Game: Oracle> Component for Client<Game> {
                         { "You may find it helpful to place flags (by right-clicking) to mark the tiles that you know contain mines. The number of unplaced flags (which is initially equal to the total number of mines) is shown at the top left of the minefield. Flagging is entirely optional, but it enables you to chord, where if you click a number tile whose adjacent mines are all flagged, you'll instantly reveal the rest of its adjacent tiles. Note, though, that if you mistakenly flag a safe tile, then chording may cause a mine to be revealed." }
                     </p>
                     <p>
-                        { "After a win or loss, easily start a new game by clicking a tile with both mouse buttons simultaneously, and then release to immediately reveal that tile in the new game." }
+                        { "When the game is over, quickly start a new game by clicking a tile with both mouse buttons simultaneously." }
                     </p>
                     <h2>
                         { "Gameplay" }
@@ -551,7 +566,28 @@ impl<Game: Oracle> Component for Client<Game> {
                     <ul>
                         <li>
                             <label>
-                                { "Numbers Style: " }
+                                { "Show timer: " }
+                                <select name="show_timer" onchange={scope.callback(|e: Event| {
+                                    Msg::SetShowTimer(
+                                        serde_json::from_str(
+                                            &e.target_unchecked_into::<HtmlSelectElement>().value()
+                                        )
+                                        .unwrap(),
+                                    )
+                                })}> {
+                                    for ShowTimer::iter()
+                                        .map(|show_timer| html! {
+                                            <option value={serde_json::to_string(&show_timer).unwrap()}
+                                                    selected={show_timer == self.theme.show_timer}>
+                                                { show_timer.to_string() }
+                                            </option>
+                                        })
+                                    } </select>
+                            </label>
+                        </li>
+                        <li>
+                            <label>
+                                { "Numbers style: " }
                                 <select name="numbers_style" onchange={scope.callback(|e: Event| {
                                     Msg::SetNumbersStyle(
                                         serde_json::from_str(
@@ -616,14 +652,17 @@ impl<Game: Oracle> Component for Client<Game> {
                                 <span class={self.remaining_flag_count().is_negative().then_some("text-red")}>
                                     { "⚑: " } { self.remaining_flag_count() }
                                 </span>
-                                <Timer game_config={self.game_config} timer_mode={
-                                    match self.game.as_ref().map(Game::status) {
-                                        None => TimerMode::Reset,
-                                        Some(GameStatus::Ongoing) => TimerMode::Running,
-                                        Some(GameStatus::Won) => TimerMode::Stopped { won_game: true },
-                                        Some(GameStatus::Lost) => TimerMode::Stopped { won_game: false },
-                                    }
-                                }/>
+                                <Timer
+                                    show_timer={self.theme.show_timer}
+                                    game_config={self.game_config}
+                                    timer_mode={
+                                        match self.game.as_ref().map(Game::status) {
+                                            None => TimerMode::Reset,
+                                            Some(GameStatus::Ongoing) => TimerMode::Running,
+                                            Some(GameStatus::Won) => TimerMode::Stopped { won_game: true },
+                                            Some(GameStatus::Lost) => TimerMode::Stopped { won_game: false },
+                                        }
+                                    }/>
                                 <span>
                                     { "Safe: " }
                                     { self.game
