@@ -9,8 +9,8 @@ pub mod local;
 
 #[derive(Deserialize)]
 struct GridConfigValidator {
-    width: usize,
     height: usize,
+    width: usize,
     mine_count: usize,
 }
 
@@ -24,16 +24,16 @@ impl TryFrom<GridConfigValidator> for GridConfig {
     type Error = GridConfigValidationError;
     fn try_from(shadow: GridConfigValidator) -> Result<Self, Self::Error> {
         let GridConfigValidator {
-            width,
             height,
+            width,
             mine_count,
         } = shadow;
         if width < 4 || height < 3 || mine_count > width * height - 9 {
             return Err(GridConfigValidationError::DegenerateGrid);
         }
         Ok(GridConfig {
-            width,
             height,
+            width,
             mine_count,
         })
     }
@@ -42,8 +42,8 @@ impl TryFrom<GridConfigValidator> for GridConfig {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(try_from = "GridConfigValidator")]
 pub struct GridConfig {
-    width: usize,
     height: usize,
+    width: usize,
     mine_count: usize,
 }
 
@@ -61,10 +61,11 @@ impl fmt::Display for GridConfig {
             self.height, self.width, self.mine_count
         ) {
             description => {
-                let name = match (self.width, self.height, self.mine_count) {
+                let name = match (self.height, self.width, self.mine_count) {
                     (9, 9, 10) => "Beginner",
                     (16, 16, 40) => "Intermediate",
-                    (30, 16, 99) => "Expert",
+                    (16, 30, 99) => "Expert",
+                    (20, 30, 130) => "Evil",
                     _ => return f.write_fmt(description),
                 };
                 f.write_fmt(format_args!("{name} ({description})"))
@@ -75,24 +76,24 @@ impl fmt::Display for GridConfig {
 
 impl GridConfig {
     pub fn new(
-        width: usize,
         height: usize,
+        width: usize,
         mine_count: usize,
     ) -> Result<Self, GridConfigValidationError> {
         // a field config is defined to be valid iff its dimensions are at least 4x4 and for every tile in the field, there exists a mine arrangement where no mines are adjacent to that tile and where that tile is a suitable first click (either winning the game immediately or leading to a game that is solvable without guessing)
         GridConfig::try_from(GridConfigValidator {
-            width,
             height,
+            width,
             mine_count,
         })
     }
 
-    pub const fn width(self) -> usize {
-        self.width
-    }
-
     pub const fn height(self) -> usize {
         self.height
+    }
+
+    pub const fn width(self) -> usize {
+        self.width
     }
 
     pub const fn mine_count(self) -> usize {
@@ -101,34 +102,47 @@ impl GridConfig {
 
     pub const fn beginner() -> Self {
         Self {
-            width: 9,
             height: 9,
+            width: 9,
             mine_count: 10,
         }
     }
 
     pub const fn intermediate() -> Self {
         Self {
-            width: 16,
             height: 16,
+            width: 16,
             mine_count: 40,
         }
     }
 
     pub const fn expert() -> Self {
         Self {
-            width: 30,
             height: 16,
+            width: 30,
             mine_count: 99,
         }
     }
 
+    pub const fn evil() -> Self {
+        Self {
+            height: 20,
+            width: 30,
+            mine_count: 130,
+        }
+    }
+
     pub const fn standard_configs() -> impl IntoIterator<Item = Self> {
-        [Self::beginner(), Self::intermediate(), Self::expert()]
+        [
+            Self::beginner(),
+            Self::intermediate(),
+            Self::expert(),
+            Self::evil(),
+        ]
     }
 
     pub const fn tile_count(self) -> usize {
-        self.width * self.height
+        self.height * self.width
     }
 
     pub const fn safe_count(self) -> usize {
