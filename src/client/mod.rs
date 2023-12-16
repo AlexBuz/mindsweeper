@@ -179,36 +179,61 @@ impl<Game: Oracle> Client<Game> {
                 self.last_revealed.push(tile_id);
             }
         }
-        for (id, adjacent_mine_count) in game.iter_adjacent_mine_counts().enumerate() {
-            if adjacent_mine_count.is_some() {
-                // revealed, so flag was wrong
-                self.flags.remove(id);
-            }
-        }
-        if game.status().is_ongoing() && self.game_config.mode == GameMode::Autopilot {
-            for (id, tile) in game.iter_adjacent_mine_counts().enumerate() {
-                let Some(number) = tile else { continue };
-                let adjacent_hidden_tile_ids = game
-                    .config()
-                    .grid_config
-                    .iter_adjacent(id)
-                    .filter(|&adjacent_tile_id| {
-                        game.adjacent_mine_count(adjacent_tile_id).is_none()
-                    })
-                    .collect_vec();
-                if number == adjacent_hidden_tile_ids.len() as u8 {
-                    for adjacent_tile_id in adjacent_hidden_tile_ids {
-                        self.flags.insert_permanent(adjacent_tile_id);
+        let mut tentative_flag_ids = Vec::new();
+        for (id, tile) in game.iter_adjacent_mine_counts().enumerate() {
+            match tile {
+                Some(adjacent_mine_count) => {
+                    self.flags.remove(id); // tile is revealed, so a flag here would be wrong
+                    if self.game_config.mode == GameMode::Autopilot {
+                        let adjacent_hidden_tile_ids = game
+                            .config()
+                            .grid_config
+                            .iter_adjacent(id)
+                            .filter(|&adjacent_tile_id| {
+                                game.adjacent_mine_count(adjacent_tile_id).is_none()
+                            })
+                            .collect_vec();
+                        if adjacent_mine_count == adjacent_hidden_tile_ids.len() as u8 {
+                            for adjacent_tile_id in adjacent_hidden_tile_ids {
+                                self.flags.insert_permanent(adjacent_tile_id);
+                            }
+                        }
                     }
                 }
+                None => {
+                    if self.game_config.mode == GameMode::Autopilot
+                        && self.flags.get(id) == Some(&Flag::Tentative)
+                    {
+                        tentative_flag_ids.push(id);
+                    }
+                }
+            }
+        }
+        if self.game_config.mode == GameMode::Autopilot {
+            // trigger autopilot by chording around existing tentative flags
+            let mut tiles_to_click = Vec::new();
+            for flag_id in tentative_flag_ids {
+                for adjacent_tile_id in self.game_config.grid_config.iter_adjacent(flag_id) {
+                    if game.adjacent_mine_count(adjacent_tile_id).is_some() {
+                        tiles_to_click.push(adjacent_tile_id);
+                    }
+                }
+            }
+            for tile_to_click in tiles_to_click {
+                self.click(tile_to_click);
             }
         }
     }
 
     fn right_click(&mut self, tile_id: usize) {
-        if let Some(game) = &self.game {
-            match game.adjacent_mine_count(tile_id) {
-                Some(adjacent_mine_count) => {
+        let Some(game) = &self.game else {
+            return;
+        };
+        let mut new_flag_ids = array_vec!([usize; 8]);
+        match game.adjacent_mine_count(tile_id) {
+            Some(adjacent_mine_count) => {
+                if self.game_config.mode != GameMode::Autopilot {
+                    // flag chording
                     let mut adjacent_flag_count = 0;
                     let mut adjacent_hidden_tile_ids = array_vec!([usize; 8]);
                     for adjacent_tile_id in self.game_config.grid_config.iter_adjacent(tile_id) {
@@ -222,12 +247,33 @@ impl<Game: Oracle> Client<Game> {
                         == adjacent_mine_count
                     {
                         for hidden_tile_id in adjacent_hidden_tile_ids {
-                            // tentative flag because this cannot be reached in autopilot mode
                             self.flags.insert_tentative(hidden_tile_id);
+                            new_flag_ids.push(hidden_tile_id);
                         }
                     }
                 }
-                None => self.flags.toggle(tile_id),
+            }
+            None => {
+                self.flags.toggle(tile_id);
+                if self.game_config.mode == GameMode::Autopilot
+                    && self.flags.get(tile_id) == Some(&Flag::Tentative)
+                {
+                    new_flag_ids.push(tile_id);
+                }
+            }
+        }
+        if self.game_config.mode == GameMode::Autopilot {
+            // trigger autopilot by chording around new tentative flags
+            let mut tiles_to_click = Vec::new();
+            for flag_id in new_flag_ids {
+                for adjacent_tile_id in self.game_config.grid_config.iter_adjacent(flag_id) {
+                    if game.adjacent_mine_count(adjacent_tile_id).is_some() {
+                        tiles_to_click.push(adjacent_tile_id);
+                    }
+                }
+            }
+            for tile_to_click in tiles_to_click {
+                self.click(tile_to_click);
             }
         }
     }
