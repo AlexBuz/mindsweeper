@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+#[derive(Debug)]
 pub enum Flag {
     Tentative,
     Permanent,

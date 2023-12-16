@@ -6,7 +6,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         let game_config = GameConfig {
             grid_config: GridConfig::expert(),
             mode: GameMode::Normal,
-            punish_guessing: true,
+            ..Default::default()
         };
         b.iter(|| LocalGame::new(game_config, game_config.grid_config.random_tile_id()))
     });
@@ -14,7 +14,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         let game_config = GameConfig {
             grid_config: GridConfig::expert(),
             mode: GameMode::Mindless,
-            punish_guessing: true,
+            ..Default::default()
         };
         b.iter(|| LocalGame::new(game_config, game_config.grid_config.random_tile_id()))
     });

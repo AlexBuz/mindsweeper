@@ -25,10 +25,11 @@ pub enum Msg {
     ShowDialog,
     CloseDialog,
     NewGame,
-    SetNumbersStyle(NumbersStyle),
     SetGridConfig(GridConfig),
     SetGameMode(GameMode),
     SetPunishGuessing(bool),
+    SetNumbersStyle(NumbersStyle),
+    SetSubtractFlags(bool),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default, EnumIter, Display)]
@@ -47,21 +48,12 @@ impl NumbersStyle {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+#[serde(default)]
 struct Theme {
-    #[serde(default)]
     numbers_style: NumbersStyle,
+    subtract_flags: bool,
 }
-
-static DEFAULT_GAME_CONFIG: GameConfig = GameConfig {
-    grid_config: GridConfig::beginner(),
-    mode: GameMode::Normal,
-    punish_guessing: true,
-};
-
-static DEFAULT_THEME: Theme = Theme {
-    numbers_style: NumbersStyle::Digits,
-};
 
 pub struct Client<Game: Oracle> {
     dialog_ref: NodeRef,
@@ -225,9 +217,28 @@ impl<Game: Oracle> Client<Game> {
         if let Some(game) = self.game.as_ref() {
             if let Some(adjacent_mine_count) = game.adjacent_mine_count(tile_id) {
                 tile_classes.push("revealed");
+
                 if adjacent_mine_count > 0 {
-                    tile_classes.push(format!("number-{adjacent_mine_count}"));
-                    tile_contents.push(self.theme.numbers_style.render(adjacent_mine_count));
+                    let display_count = if self.theme.subtract_flags {
+                        let adjacent_flags: u8 = self
+                            .game_config
+                            .grid_config
+                            .iter_adjacent(tile_id)
+                            .map(|tile_id| u8::from(self.flags.get(tile_id).is_some()))
+                            .sum();
+
+                        adjacent_mine_count.checked_sub(adjacent_flags)
+                    } else {
+                        Some(adjacent_mine_count)
+                    };
+
+                    if let Some(count) = display_count {
+                        tile_classes.push(format!("number-{count}"));
+                        tile_contents.push(self.theme.numbers_style.render(count));
+                    } else {
+                        tile_classes.push("text-red");
+                        tile_contents.push('?')
+                    }
                 }
             } else if game.status().is_won() {
                 tile_contents.push(FLAG_SYMBOL);
@@ -243,7 +254,8 @@ impl<Game: Oracle> Client<Game> {
                         tile_classes.push("text-faded");
                     }
                     if analyzer_tile.is_known_mine() {
-                        tooltip = Some("This was definitely a mine, so you were correct to flag it.");
+                        tooltip =
+                            Some("This was definitely a mine, so you were correct to flag it.");
                         tile_classes.push("bg-green");
                     } else if analyzer_tile.is_known_safe() {
                         tooltip = Some("This was definitely safe, so you were wrong to flag it.");
@@ -263,19 +275,24 @@ impl<Game: Oracle> Client<Game> {
                             tooltip = Some("This may or may not have been a mine, so you were wrong to reveal it. In this case, it was in fact a mine, so you lost.");
                             tile_classes.push("bg-orange");
                         } else {
-                            tooltip = Some("This may or may not have been a mine, and in this case it was.");
+                            tooltip = Some(
+                                "This may or may not have been a mine, and in this case it was.",
+                            );
                         }
                     } else if self.last_revealed.contains(&tile_id) {
-                        tooltip = Some("This was definitely a mine, and you revealed it, so you lost.");
+                        tooltip =
+                            Some("This was definitely a mine, and you revealed it, so you lost.");
                         tile_classes.push("bg-red");
                     } else {
-                        tooltip = Some("This was definitely a mine, so you could've safely flagged it.");
+                        tooltip =
+                            Some("This was definitely a mine, so you could've safely flagged it.");
                     }
                 } else if analyzer_tile.is_known_safe() {
                     tooltip = Some("This was definitely safe, so you could've safely revealed it.");
                     tile_classes.push("bg-blue");
                 } else {
-                    tooltip = Some("This may or may not have been a mine, and in this case it was not.");
+                    tooltip =
+                        Some("This may or may not have been a mine, and in this case it was not.");
                 }
             } else if let Some(flag) = self.flags.get(tile_id) {
                 tile_contents.push(FLAG_SYMBOL);
@@ -287,10 +304,15 @@ impl<Game: Oracle> Client<Game> {
 
         html! {
             <td key={tile_id}
+                id={format!("tile-{tile_id}")}
                 title={tooltip}
                 class={tile_classes}
-                onmousedown={scope.callback(move |e: MouseEvent| Msg::TileMouseEvent { tile_id, button: e.button(), buttons: e.buttons() })}
-                onmouseup={scope.callback(move |e: MouseEvent| Msg::TileMouseEvent { tile_id, button: e.button(), buttons: e.buttons() })}>
+                onmousedown={scope.callback(move |e: MouseEvent|
+                    Msg::TileMouseEvent { tile_id, button: e.button(), buttons: e.buttons() }
+                )}
+                onmouseup={scope.callback(move |e: MouseEvent|
+                    Msg::TileMouseEvent { tile_id, button: e.button(), buttons: e.buttons() }
+                )}>
                 <div>
                     { tile_contents }
                 </div>
@@ -316,8 +338,8 @@ impl<Game: Oracle> Component for Client<Game> {
             dialog_ref: NodeRef::default(),
             should_show_dialog: stored_game_config.is_err()
                 || !LocalStorage::get::<bool>(storage_keys::CLOSED_DIALOG).unwrap_or_default(),
-            game_config: stored_game_config.unwrap_or(DEFAULT_GAME_CONFIG),
-            theme: LocalStorage::get(storage_keys::THEME).unwrap_or(DEFAULT_THEME),
+            game_config: stored_game_config.unwrap_or_default(),
+            theme: LocalStorage::get(storage_keys::THEME).unwrap_or_default(),
             prepared_game: None,
             game: None,
             flags: FlagStore::new(),
@@ -363,10 +385,6 @@ impl<Game: Oracle> Component for Client<Game> {
             Msg::ShowDialog => self.show_dialog(),
             Msg::CloseDialog => self.close_dialog(),
             Msg::NewGame => self.new_game(),
-            Msg::SetNumbersStyle(style) => {
-                self.theme.numbers_style = style;
-                self.save_theme();
-            }
             Msg::SetGridConfig(config) => {
                 self.game_config.grid_config = config;
                 self.save_game_config();
@@ -381,6 +399,14 @@ impl<Game: Oracle> Component for Client<Game> {
                 self.game_config.punish_guessing = value;
                 self.save_game_config();
                 self.new_game();
+            }
+            Msg::SetNumbersStyle(style) => {
+                self.theme.numbers_style = style;
+                self.save_theme();
+            }
+            Msg::SetSubtractFlags(value) => {
+                self.theme.subtract_flags = value;
+                self.save_theme();
             }
         }
         true
@@ -445,8 +471,8 @@ impl<Game: Oracle> Component for Client<Game> {
                                         .map(|config| (FloatOrd(config.mine_density()), config))
                                         .chain([
                                             (
-                                                FloatOrd(DEFAULT_GAME_CONFIG.grid_config.mine_density()),
-                                                DEFAULT_GAME_CONFIG.grid_config,
+                                                FloatOrd(GridConfig::default().mine_density()),
+                                                GridConfig::default(),
                                             ),
                                             (
                                                 FloatOrd(self.game_config.grid_config.mine_density()),
@@ -543,6 +569,25 @@ impl<Game: Oracle> Component for Client<Game> {
                                         })
                                     } </select>
                             </label>
+                        </li>
+                        <li>
+                            <label>
+                                { "Subtract flags: " }
+                                <input
+                                    type="checkbox"
+                                    name="subtract_flags"
+                                    checked={self.theme.subtract_flags}
+                                    onchange={scope.callback(|e: Event|
+                                        Msg::SetSubtractFlags(
+                                            e.target_unchecked_into::<HtmlInputElement>().checked()
+                                        )
+                                    )}/>
+                            </label>
+                            <ul>
+                                <li>
+                                    { "This subtracts the number of adjacent flags from the number displayed on each revealed tile, so that you can see at a glance how many flags you have left to place." }
+                                </li>
+                            </ul>
                         </li>
                     </ul>
                     <form method="dialog">

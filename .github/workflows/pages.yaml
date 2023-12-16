@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install rust toolchain
+      uses: dtolnay/rust-toolchain@beta
+      with:
+        targets: wasm32-unknown-unknown
+
+    - name: Install trunk
+      uses: taiki-e/install-action@v2
+      with:
+        tool: trunk
+
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Build website
+      run: trunk build
+
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v2
+      with:
+        path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    if: github.event_name != 'pull_request'
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v3
+

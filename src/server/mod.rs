@@ -47,6 +47,12 @@ pub struct GridConfig {
     mine_count: usize,
 }
 
+impl Default for GridConfig {
+    fn default() -> Self {
+        Self::beginner()
+    }
+}
+
 impl fmt::Display for GridConfig {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         #[allow(clippy::match_single_binding)] // false positive
@@ -186,8 +192,9 @@ impl GameStatus {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum GameMode {
+    #[default]
     Normal,
     Mindless,
     Autopilot,
@@ -198,6 +205,16 @@ pub struct GameConfig {
     pub grid_config: GridConfig,
     pub mode: GameMode,
     pub punish_guessing: bool,
+}
+
+impl Default for GameConfig {
+    fn default() -> Self {
+        Self {
+            grid_config: Default::default(),
+            mode: Default::default(),
+            punish_guessing: true,
+        }
+    }
 }
 
 pub trait Oracle: Serialize + for<'a> Deserialize<'a> + 'static {
