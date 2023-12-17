@@ -1,6 +1,7 @@
 use float_ord::FloatOrd;
 use gloo::storage::{LocalStorage, Storage};
 use itertools::Itertools;
+use js_sys::Date;
 use mindsweeper::{analyzer::Analyzer, server::*, utils::*};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -22,6 +23,13 @@ pub enum Msg {
         button: i16,
         buttons: u16,
     },
+    TileTouchStart {
+        tile_id: usize,
+    },
+    TileTouchMove,
+    TileTouchEnd {
+        tile_id: usize,
+    },
     ShowDialog,
     CloseDialog,
     NewGame,
@@ -31,6 +39,7 @@ pub enum Msg {
     SetShowTimer(ShowTimer),
     SetNumbersStyle(NumbersStyle),
     SetSubtractFlags(bool),
+    SwapControls,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default, EnumIter, Display)]
@@ -66,6 +75,11 @@ struct Theme {
     subtract_flags: bool,
 }
 
+struct TileTouch {
+    tile_id: usize,
+    date: f64,
+}
+
 pub struct Client<Game: Oracle> {
     dialog_ref: NodeRef,
     should_show_dialog: bool,
@@ -75,6 +89,8 @@ pub struct Client<Game: Oracle> {
     game: Option<Game>,
     flags: FlagStore,
     last_revealed: Vec<usize>,
+    controls_swapped: bool,
+    touching_tile: Option<TileTouch>,
 }
 
 mod storage_keys {
@@ -237,7 +253,7 @@ impl<Game: Oracle> Client<Game> {
         }
     }
 
-    fn right_click(&mut self, tile_id: usize) {
+    fn secondary_click(&mut self, tile_id: usize) {
         let Some(game) = &self.game else {
             return;
         };
@@ -398,7 +414,13 @@ impl<Game: Oracle> Client<Game> {
                 )}
                 onmouseup={scope.callback(move |e: MouseEvent|
                     Msg::TileMouseEvent { tile_id, button: e.button(), buttons: e.buttons() }
-                )}>
+                )}
+                ontouchstart={scope.callback(move |_e: TouchEvent| Msg::TileTouchStart {tile_id})}
+                ontouchmove={scope.callback(move |_e: TouchEvent| Msg::TileTouchMove)}
+                ontouchend={scope.callback(move |e: TouchEvent| {
+                    e.prevent_default();
+                    Msg::TileTouchEnd {tile_id }
+                })}>
                 <div>
                     { tile_contents }
                 </div>
@@ -430,6 +452,8 @@ impl<Game: Oracle> Component for Client<Game> {
             game: None,
             flags: FlagStore::new(),
             last_revealed: vec![],
+            controls_swapped: false,
+            touching_tile: None,
         }
     }
 
@@ -447,6 +471,11 @@ impl<Game: Oracle> Component for Client<Game> {
                     2 => 2,
                     _ => 1 << button,
                 };
+                let (primary_button, secondary_button) = if self.controls_swapped {
+                    (2, 1)
+                } else {
+                    (1, 2)
+                };
                 if buttons & changed_button != 0 {
                     // mouse down
                     match &self.game {
@@ -456,16 +485,48 @@ impl<Game: Oracle> Component for Client<Game> {
                             }
                         }
                         _ => {
-                            if changed_button == 1 {
+                            if changed_button == primary_button {
                                 self.prepare_for_click(tile_id);
-                            } else if changed_button == 2 {
-                                self.right_click(tile_id);
+                            } else if changed_button == secondary_button {
+                                self.secondary_click(tile_id);
                             }
                         }
                     }
-                } else if changed_button == 1 {
+                } else if changed_button == primary_button {
                     // mouse up
                     self.click(tile_id);
+                }
+            }
+            Msg::TileTouchStart { tile_id } => {
+                self.touching_tile = Some(TileTouch {
+                    tile_id,
+                    date: Date::new_0().get_time(),
+                });
+                self.prepare_for_click(tile_id);
+            }
+            Msg::TileTouchMove => self.touching_tile = None,
+            Msg::TileTouchEnd { tile_id } => {
+                let Some(TileTouch {
+                    tile_id: touch_start_tile_id,
+                    date,
+                }) = self.touching_tile
+                else {
+                    return false;
+                };
+                if tile_id == touch_start_tile_id {
+                    if Date::new_0().get_time() - date > 100.0 {
+                        if self.controls_swapped {
+                            self.click(tile_id);
+                        } else {
+                            self.secondary_click(tile_id);
+                        }
+                    } else if self.controls_swapped {
+                        self.secondary_click(tile_id);
+                    } else {
+                        self.click(tile_id);
+                    }
+                } else {
+                    self.touching_tile = None;
                 }
             }
             Msg::ShowDialog => self.show_dialog(),
@@ -498,6 +559,7 @@ impl<Game: Oracle> Component for Client<Game> {
                 self.theme.subtract_flags = value;
                 self.save_theme();
             }
+            Msg::SwapControls => self.controls_swapped = !self.controls_swapped,
         }
         true
     }
@@ -755,6 +817,16 @@ impl<Game: Oracle> Component for Client<Game> {
             <div id="buttons">
                 <button onclick={scope.callback(|_| Msg::ShowDialog)}>
                     { "Options & Info" }
+                </button>
+                <button onclick={scope.callback(|_| Msg::SwapControls)}>
+                    { "Click = "}
+                    {
+                        if self.controls_swapped {
+                            "Flag"
+                        } else {
+                            "Reveal"
+                        }
+                    }
                 </button>
                 <button onclick={scope.callback(|_| Msg::NewGame)}
                         disabled={self.game.is_none()}>
