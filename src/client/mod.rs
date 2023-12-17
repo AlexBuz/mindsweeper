@@ -514,7 +514,7 @@ impl<Game: Oracle> Component for Client<Game> {
                     return false;
                 };
                 if tile_id == touch_start_tile_id {
-                    if Date::new_0().get_time() - date > 100.0 {
+                    if Date::new_0().get_time() - date > 120.0 {
                         if self.controls_swapped {
                             self.click(tile_id);
                         } else {
