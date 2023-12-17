@@ -21,6 +21,7 @@ web-sys = { version = "0.3.64", features = [
     "HtmlDialogElement",
     "HtmlElement",
     "HtmlSelectElement",
+    "Navigator",
 ] }
 js-sys = "0.3.64"
 wasm-bindgen = "0.2.87"

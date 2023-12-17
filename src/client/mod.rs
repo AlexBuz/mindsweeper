@@ -819,12 +819,19 @@ impl<Game: Oracle> Component for Client<Game> {
                     { "Options & Info" }
                 </button>
                 <button onclick={scope.callback(|_| Msg::SwapControls)}>
-                    { "Click = "}
+                    {
+                        if supports_touch() {
+                            "Hold"
+                        } else {
+                            "Right-click"
+                        }
+                    }
+                    { " tile = " }
                     {
                         if self.controls_swapped {
-                            "Flag"
+                            "reveal"
                         } else {
-                            "Reveal"
+                            "flag"
                         }
                     }
                 </button>
@@ -835,4 +842,11 @@ impl<Game: Oracle> Component for Client<Game> {
             </div>
         </>}
     }
+}
+
+fn supports_touch() -> bool {
+    let Some(window) = web_sys::window() else {
+        return false;
+    };
+    window.navigator().max_touch_points() > 0
 }
