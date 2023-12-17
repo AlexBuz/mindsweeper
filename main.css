@@ -68,7 +68,8 @@ table {
     cursor: default;
 }
 
-#buttons, #info {
+#buttons,
+#info {
     display: flex;
     align-items: center;
     justify-content: space-evenly;
@@ -112,6 +113,7 @@ table {
     width: 36px;
     min-height: 36px;
     min-width: 36px;
+    line-height: 40px;
     text-align: center;
     border: 1px solid black;
     font-size: 24px;
