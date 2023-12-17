@@ -122,6 +122,18 @@ impl<Game: Oracle> Client<Game> {
         self.get_dialog().close();
     }
 
+    fn update_css_board_width(&self) -> Option<()> {
+        web_sys::window()?
+            .document()?
+            .body()?
+            .style()
+            .set_property(
+                "--board-width",
+                &format!("{}px", self.game_config.grid_config.width() * 39),
+            )
+            .ok()
+    }
+
     /// Reduces first-click latency by pre-generating a game on mousedown
     fn prepare_for_click(&mut self, tile_id: usize) {
         if !self
@@ -507,6 +519,7 @@ impl<Game: Oracle> Component for Client<Game> {
             })
         });
         let stop_propagation = |e: MouseEvent| e.stop_propagation();
+        self.update_css_board_width();
         html! {<>
             <dialog ref={self.dialog_ref.clone()} onclick={scope.callback(|_| Msg::CloseDialog)}>
                 <div onclick={stop_propagation} oncontextmenu={stop_propagation}>
@@ -694,53 +707,34 @@ impl<Game: Oracle> Component for Client<Game> {
                     </form>
                 </div>
             </dialog>
-            <table>
-                <thead>
-                    <tr>
-                        <td colspan={self.game_config.grid_config.width().to_string()}>
-                            <div>
-                                <button onclick={scope.callback(|_| Msg::ShowDialog)}>
-                                    { "Options & Info" }
-                                </button>
-                                <button onclick={scope.callback(|_| Msg::NewGame)}
-                                        disabled={self.game.is_none()}>
-                                    { "New Game" }
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td colspan={self.game_config.grid_config.width().to_string()}>
-                            <div>
-                                <span class={self.remaining_flag_count().is_negative().then_some("text-red")}>
-                                    { "⚑: " } { self.remaining_flag_count() }
-                                </span>
-                                <Timer
-                                    show_timer={self.theme.show_timer}
-                                    game_config={self.game_config}
-                                    timer_mode={
-                                        match self.game.as_ref().map(Game::status) {
-                                            None => TimerMode::Reset,
-                                            Some(GameStatus::Ongoing) => TimerMode::Running,
-                                            Some(GameStatus::Won) => TimerMode::Stopped { won_game: true },
-                                            Some(GameStatus::Lost) => TimerMode::Stopped { won_game: false },
-                                        }
-                                    }/>
-                                <span>
-                                    { "Safe: " }
-                                    { self.game
-                                        .as_ref()
-                                        .map_or_else(
-                                            || self.game_config.grid_config.safe_count(),
-                                            Game::hidden_safe_count
-                                        )
-                                    }
-                                </span>
-                            </div>
-                        </td>
-                    </tr>
-                </thead>
-                <tbody class={classes!(
+            <div id="info">
+                <span class={self.remaining_flag_count().is_negative().then_some("text-red")}>
+                    { "⚑: " } { self.remaining_flag_count() }
+                </span>
+                <Timer
+                    show_timer={self.theme.show_timer}
+                    game_config={self.game_config}
+                    timer_mode={
+                        match self.game.as_ref().map(Game::status) {
+                            None => TimerMode::Reset,
+                            Some(GameStatus::Ongoing) => TimerMode::Running,
+                            Some(GameStatus::Won) => TimerMode::Stopped { won_game: true },
+                            Some(GameStatus::Lost) => TimerMode::Stopped { won_game: false },
+                        }
+                    }/>
+                <span>
+                    { "Safe: " }
+                    { self.game
+                        .as_ref()
+                        .map_or_else(
+                            || self.game_config.grid_config.safe_count(),
+                            Game::hidden_safe_count
+                        )
+                    }
+                </span>
+            </div>
+            <div id="board">
+                <table class={classes!(
                     self.game_config.punish_guessing.then_some("punish-guessing"),
                     match self.game_config.mode {
                         GameMode::Normal => None,
@@ -756,8 +750,17 @@ impl<Game: Oracle> Component for Client<Game> {
                                 { for row.map(|tile_id| self.view_tile(tile_id, analyzer.as_ref(), scope)) }
                             </tr>
                         })
-                } </tbody>
-            </table>
+                } </table>
+            </div>
+            <div id="buttons">
+                <button onclick={scope.callback(|_| Msg::ShowDialog)}>
+                    { "Options & Info" }
+                </button>
+                <button onclick={scope.callback(|_| Msg::NewGame)}
+                        disabled={self.game.is_none()}>
+                    { "New Game" }
+                </button>
+            </div>
         </>}
     }
 }

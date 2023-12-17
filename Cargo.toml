@@ -17,8 +17,10 @@ num = { version = "0.4.1", features = ["rand"] }
 rayon = "1.7.0"
 yew = { version = "0.21.0", features = ["csr"] }
 web-sys = { version = "0.3.64", features = [
-    "HtmlSelectElement",
+    "CssStyleDeclaration",
     "HtmlDialogElement",
+    "HtmlElement",
+    "HtmlSelectElement",
 ] }
 js-sys = "0.3.64"
 wasm-bindgen = "0.2.87"
