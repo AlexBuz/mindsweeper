@@ -88,10 +88,6 @@ table {
     font-family: 'Menlo', 'Consolas', monospace;
 }
 
-.timer.faded {
-    color: gray;
-}
-
 table:not(.punish-guessing) {
     --shadow-red: 128;
 }
@@ -153,7 +149,7 @@ table {
 }
 
 .text-faded {
-    color: rgba(0, 0, 0, 0.5);
+    opacity: 0.5;
 }
 
 .text-red {

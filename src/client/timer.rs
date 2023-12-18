@@ -131,7 +131,7 @@ impl Component for Timer {
         let best = self.best_times.get(&props.game_config).copied();
         let mut timer_classes = classes!("timer");
         let time = if props.timer_mode == TimerMode::Reset {
-            timer_classes.push("faded");
+            timer_classes.push("text-faded");
             best
         } else if props.timer_mode == TimerMode::Running
             && props.show_timer == ShowTimer::OnGameOver

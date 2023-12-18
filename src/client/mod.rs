@@ -317,9 +317,14 @@ impl<Game: Oracle> Client<Game> {
     fn view_tile(&self, tile_id: usize, analyzer: Option<&Analyzer>, scope: &Scope<Self>) -> Html {
         const FLAG_SYMBOL: char = '⚑';
         const MINE_SYMBOL: char = '💣';
+
         let mut tile_classes = classes!("tile");
-        let mut tile_contents = String::new();
+        let mut bg_class = None;
+        let mut text_class = None;
+
+        let mut contents = None;
         let mut tooltip = None;
+
         if let Some(game) = self.game.as_ref() {
             if let Some(adjacent_mine_count) = game.adjacent_mine_count(tile_id) {
                 tile_classes.push("revealed");
@@ -336,48 +341,48 @@ impl<Game: Oracle> Client<Game> {
                     match adjacent_mine_count.checked_sub(subtrahend) {
                         Some(count) => {
                             tile_classes.push(format!("number-{count}"));
-                            tile_contents.push(self.theme.numbers_style.render(count));
+                            contents = Some(self.theme.numbers_style.render(count));
                         }
                         None => {
-                            tile_classes.push("text-red");
-                            tile_contents.push('?')
+                            text_class = Some("text-red");
+                            contents = Some('?')
                         }
                     }
                 }
             } else if game.status().is_won() {
-                tile_contents.push(FLAG_SYMBOL);
-                tile_classes.push("bg-green");
+                contents = Some(FLAG_SYMBOL);
+                bg_class = Some("bg-green");
             } else if game.status().is_lost() {
                 let Some(analyzer) = analyzer else {
                     panic!("expected analyzer");
                 };
                 let analyzer_tile = analyzer.get_tile(tile_id);
                 if let Some(flag) = self.flags.get(tile_id) {
-                    tile_contents.push(FLAG_SYMBOL);
+                    contents = Some(FLAG_SYMBOL);
                     if game.config().mode == GameMode::Autopilot && flag.is_tentative() {
-                        tile_classes.push("text-faded");
+                        text_class = Some("text-faded");
                     }
                     if analyzer_tile.is_known_mine() {
                         tooltip =
                             Some("This was definitely a mine, so you were correct to flag it.");
-                        tile_classes.push("bg-green");
+                        bg_class = Some("bg-green");
                     } else if analyzer_tile.is_known_safe() {
                         tooltip = Some("This was definitely safe, so you were wrong to flag it.");
-                        tile_classes.push("bg-red");
+                        bg_class = Some("bg-red");
                     } else if game.is_mine(tile_id) {
                         tooltip = Some("This happened to be a mine, but it could've been safe. You were wrong to flag it, and you would've been wrong to reveal it too.");
-                        tile_classes.push("bg-yellow");
+                        bg_class = Some("bg-yellow");
                     } else {
                         tooltip = Some("This happened to be safe, but it could've been a mine. You were wrong to flag it, and you would've been wrong to reveal it too.");
-                        tile_classes.push("bg-orange");
+                        bg_class = Some("bg-orange");
                     }
                 } else if game.is_mine(tile_id) {
-                    tile_contents.push(MINE_SYMBOL);
+                    contents = Some(MINE_SYMBOL);
                     if analyzer_tile.is_unknown() {
-                        tile_classes.push("text-faded");
+                        text_class = Some("text-faded");
                         if self.last_revealed.contains(&tile_id) {
                             tooltip = Some("This may or may not have been a mine, so you were wrong to reveal it. In this case, it was in fact a mine, so you lost.");
-                            tile_classes.push("bg-orange");
+                            bg_class = Some("bg-orange");
                         } else {
                             tooltip = Some(
                                 "This may or may not have been a mine, and in this case it was.",
@@ -386,25 +391,27 @@ impl<Game: Oracle> Client<Game> {
                     } else if self.last_revealed.contains(&tile_id) {
                         tooltip =
                             Some("This was definitely a mine, and you revealed it, so you lost.");
-                        tile_classes.push("bg-red");
+                        bg_class = Some("bg-red");
                     } else {
                         tooltip =
                             Some("This was definitely a mine, so you could've safely flagged it.");
                     }
                 } else if analyzer_tile.is_known_safe() {
                     tooltip = Some("This was definitely safe, so you could've safely revealed it.");
-                    tile_classes.push("bg-blue");
+                    bg_class = Some("bg-blue");
                 } else {
                     tooltip =
                         Some("This may or may not have been a mine, and in this case it was not.");
                 }
             } else if let Some(flag) = self.flags.get(tile_id) {
-                tile_contents.push(FLAG_SYMBOL);
+                contents = Some(FLAG_SYMBOL);
                 if game.config().mode == GameMode::Autopilot && flag.is_tentative() {
-                    tile_classes.push("text-faded");
+                    text_class = Some("text-faded");
                 }
             }
         }
+
+        tile_classes.extend(bg_class);
 
         html! {
             <td key={tile_id}
@@ -423,8 +430,8 @@ impl<Game: Oracle> Client<Game> {
                     e.prevent_default();
                     Msg::TileTouchEnd {tile_id }
                 })}>
-                <div>
-                    { tile_contents }
+                <div class={text_class}>
+                    { contents }
                 </div>
             </td>
         }
