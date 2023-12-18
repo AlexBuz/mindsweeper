@@ -23,7 +23,6 @@ pub enum Msg {
         button: i16,
         buttons: u16,
     },
-    UsingMouse,
     TileTouchStart {
         tile_id: usize,
     },
@@ -91,7 +90,6 @@ pub struct Client<Game: Oracle> {
     flags: FlagStore,
     last_revealed: Vec<usize>,
     controls_swapped: bool,
-    using_touchscreen: bool,
     touching_tile: Option<TileTouch>,
 }
 
@@ -312,6 +310,7 @@ impl<Game: Oracle> Client<Game> {
         self.game = None;
         self.flags.clear();
         self.last_revealed.clear();
+        self.controls_swapped = false;
     }
 
     fn view_tile(&self, tile_id: usize, analyzer: Option<&Analyzer>, scope: &Scope<Self>) -> Html {
@@ -443,6 +442,16 @@ impl<Game: Oracle> Client<Game> {
             _ => self.game_config.grid_config.mine_count() as isize - self.flags.len() as isize,
         }
     }
+
+    fn unswap_controls_if_game_over(&mut self) {
+        if self
+            .game
+            .as_ref()
+            .is_some_and(|game| game.status().is_game_over())
+        {
+            self.controls_swapped = false;
+        }
+    }
 }
 
 impl<Game: Oracle> Component for Client<Game> {
@@ -462,8 +471,6 @@ impl<Game: Oracle> Component for Client<Game> {
             flags: FlagStore::new(),
             last_revealed: vec![],
             controls_swapped: false,
-            using_touchscreen: web_sys::window()
-                .is_some_and(|window| window.navigator().max_touch_points() > 0),
             touching_tile: None,
         }
     }
@@ -507,10 +514,9 @@ impl<Game: Oracle> Component for Client<Game> {
                     // mouse up
                     self.click(tile_id);
                 }
+                self.unswap_controls_if_game_over();
             }
-            Msg::UsingMouse => self.using_touchscreen = false,
             Msg::TileTouchStart { tile_id } => {
-                self.using_touchscreen = true;
                 self.touching_tile = Some(TileTouch {
                     tile_id,
                     date: Date::new_0().get_time(),
@@ -533,6 +539,7 @@ impl<Game: Oracle> Component for Client<Game> {
                     } else {
                         self.click(tile_id);
                     }
+                    self.unswap_controls_if_game_over();
                 }
             }
             Msg::ShowDialog => self.show_dialog(),
@@ -804,45 +811,42 @@ impl<Game: Oracle> Component for Client<Game> {
             <div id="board">
                 <table
                     class={classes!(
+                        self.controls_swapped.then_some("controls-swapped"),
                         self.game_config.punish_guessing.then_some("punish-guessing"),
                         match self.game_config.mode {
                             GameMode::Normal => None,
                             GameMode::Autopilot => Some("autopilot"),
                             GameMode::Mindless => Some("mindless"),
                         }
-                    )}
-                    onmousemove={scope.callback(|_| Msg::UsingMouse)
-                }> {
+                    )}>
+                {
                     for (0..self.game_config.grid_config.tile_count())
                         .chunks(self.game_config.grid_config.width())
                         .into_iter()
                         .map(|row| html! {
-                            <tr> {
+                            <tr>
+                            {
                                 for row.map(|tile_id| {
                                     self.view_tile(tile_id, analyzer.as_ref(), scope)
                                 })
-                            } </tr>
+                            }
+                            </tr>
                         })
-                } </table>
+                }
+                </table>
             </div>
             <div id="buttons">
                 <button onclick={scope.callback(|_| Msg::ShowDialog)}>
                     { "Options & Info" }
                 </button>
-                <button onclick={scope.callback(|_| Msg::SwapControls)}>
-                    {
-                        if self.using_touchscreen {
-                            "Hold"
-                        } else {
-                            "Right-click"
-                        }
-                    }
-                    { " tile = " }
+                <button onclick={scope.callback(|_| Msg::SwapControls)}
+                        disabled={self.game.is_none() || analyzer.is_some()}>
+                    { "Mode: " }
                     {
                         if self.controls_swapped {
-                            "reveal"
+                            "Flag"
                         } else {
-                            "flag"
+                            "Reveal"
                         }
                     }
                 </button>
