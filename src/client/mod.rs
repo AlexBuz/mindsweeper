@@ -23,6 +23,7 @@ pub enum Msg {
         button: i16,
         buttons: u16,
     },
+    UsingMouse,
     TileTouchStart {
         tile_id: usize,
     },
@@ -90,6 +91,7 @@ pub struct Client<Game: Oracle> {
     flags: FlagStore,
     last_revealed: Vec<usize>,
     controls_swapped: bool,
+    using_touchscreen: bool,
     touching_tile: Option<TileTouch>,
 }
 
@@ -453,6 +455,8 @@ impl<Game: Oracle> Component for Client<Game> {
             flags: FlagStore::new(),
             last_revealed: vec![],
             controls_swapped: false,
+            using_touchscreen: web_sys::window()
+                .is_some_and(|window| window.navigator().max_touch_points() > 0),
             touching_tile: None,
         }
     }
@@ -497,7 +501,9 @@ impl<Game: Oracle> Component for Client<Game> {
                     self.click(tile_id);
                 }
             }
+            Msg::UsingMouse => self.using_touchscreen = false,
             Msg::TileTouchStart { tile_id } => {
+                self.using_touchscreen = true;
                 self.touching_tile = Some(TileTouch {
                     tile_id,
                     date: Date::new_0().get_time(),
@@ -509,24 +515,17 @@ impl<Game: Oracle> Component for Client<Game> {
                 let Some(TileTouch {
                     tile_id: touch_start_tile_id,
                     date,
-                }) = self.touching_tile
+                }) = self.touching_tile.take()
                 else {
                     return false;
                 };
                 if tile_id == touch_start_tile_id {
-                    if Date::new_0().get_time() - date > 120.0 {
-                        if self.controls_swapped {
-                            self.click(tile_id);
-                        } else {
-                            self.secondary_click(tile_id);
-                        }
-                    } else if self.controls_swapped {
+                    let is_hold = Date::new_0().get_time() - date > 120.0;
+                    if is_hold ^ self.controls_swapped {
                         self.secondary_click(tile_id);
                     } else {
                         self.click(tile_id);
                     }
-                } else {
-                    self.touching_tile = None;
                 }
             }
             Msg::ShowDialog => self.show_dialog(),
@@ -796,21 +795,26 @@ impl<Game: Oracle> Component for Client<Game> {
                 </span>
             </div>
             <div id="board">
-                <table class={classes!(
-                    self.game_config.punish_guessing.then_some("punish-guessing"),
-                    match self.game_config.mode {
-                        GameMode::Normal => None,
-                        GameMode::Autopilot => Some("autopilot"),
-                        GameMode::Mindless => Some("mindless"),
-                    }
-                )}> {
+                <table
+                    class={classes!(
+                        self.game_config.punish_guessing.then_some("punish-guessing"),
+                        match self.game_config.mode {
+                            GameMode::Normal => None,
+                            GameMode::Autopilot => Some("autopilot"),
+                            GameMode::Mindless => Some("mindless"),
+                        }
+                    )}
+                    onmousemove={scope.callback(|_| Msg::UsingMouse)
+                }> {
                     for (0..self.game_config.grid_config.tile_count())
                         .chunks(self.game_config.grid_config.width())
                         .into_iter()
                         .map(|row| html! {
-                            <tr>
-                                { for row.map(|tile_id| self.view_tile(tile_id, analyzer.as_ref(), scope)) }
-                            </tr>
+                            <tr> {
+                                for row.map(|tile_id| {
+                                    self.view_tile(tile_id, analyzer.as_ref(), scope)
+                                })
+                            } </tr>
                         })
                 } </table>
             </div>
@@ -820,7 +824,7 @@ impl<Game: Oracle> Component for Client<Game> {
                 </button>
                 <button onclick={scope.callback(|_| Msg::SwapControls)}>
                     {
-                        if supports_touch() {
+                        if self.using_touchscreen {
                             "Hold"
                         } else {
                             "Right-click"
@@ -842,11 +846,4 @@ impl<Game: Oracle> Component for Client<Game> {
             </div>
         </>}
     }
-}
-
-fn supports_touch() -> bool {
-    let Some(window) = web_sys::window() else {
-        return false;
-    };
-    window.navigator().max_touch_points() > 0
 }
