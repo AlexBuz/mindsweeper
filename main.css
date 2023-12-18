@@ -118,6 +118,10 @@ table {
     background-color: #eee;
 }
 
+table.controls-swapped .tile:not(.revealed, .flag-permanent) {
+    background-color: #ddf;
+}
+
 .tile>div {
     max-width: 36px;
     max-height: 36px;

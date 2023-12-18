@@ -404,8 +404,12 @@ impl<Game: Oracle> Client<Game> {
                 }
             } else if let Some(flag) = self.flags.get(tile_id) {
                 contents = Some(FLAG_SYMBOL);
-                if game.config().mode == GameMode::Autopilot && flag.is_tentative() {
-                    text_class = Some("text-faded");
+                if game.config().mode == GameMode::Autopilot {
+                    if flag.is_tentative() {
+                        text_class = Some("text-faded");
+                    } else {
+                        tile_classes.push("flag-permanent");
+                    }
                 }
             }
         }
