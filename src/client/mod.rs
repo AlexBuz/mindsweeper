@@ -713,7 +713,7 @@ impl<Game: Oracle> Component for Client<Game> {
                                             <em> { "can" } </em>
                                             { " contain a mine, this ensures it " }
                                             <em> { "does" } </em>
-                                            { " contain a mine. This will also punish you for using the no-guessing-required guarantee as a basis for inference." }
+                                            { " contain a mine. When enabled, you may not make deductions based on the no-guessing-needed property." }
                                         </li>
                                     </ul>
                                 </li>
