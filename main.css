@@ -5,12 +5,11 @@ body {
 }
 
 h2 {
-    margin-bottom: 0;
     padding-right: 30px;
 }
 
-dialog :not(h2) {
-    line-height: 1.25;
+h3 {
+    margin: 8px 0;
 }
 
 li {
@@ -25,7 +24,7 @@ dialog {
     border: none;
     box-shadow: 0 0 16px gray;
     border-radius: 20px;
-    max-width: calc(min(90ch, 90vw));
+    max-width: calc(min(calc(.9 * 840px), 90vw));
     max-height: 85vh;
     padding: 0;
 }
@@ -38,17 +37,40 @@ dialog::backdrop {
     background: rgba(0, 0, 0, 0.2);
 }
 
+#options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 16px;
+}
+
+@media (max-width: 840px) {
+    #options {
+        grid-template-columns: 1fr;
+    }
+}
+
 label {
     -webkit-user-select: none;
     user-select: none;
 }
 
-button#close-dialog {
+button.close-dialog {
     position: absolute;
     width: 28px;
     height: 28px;
     top: 15px;
     right: 15px;
+    border-radius: 14px;
+    line-height: 28px;
+    font-size: 20px;
+    border: none;
+    padding: 0;
+    background-color: #e9e9eb;
+    transition: 0.1s;
+}
+
+button.close-dialog:hover {
+    background-color: #ddd;
 }
 
 #board {
@@ -79,7 +101,7 @@ table {
 }
 
 #buttons button {
-    height: 32px;
+    height: 28px;
 }
 
 .timer {

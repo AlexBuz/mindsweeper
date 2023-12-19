@@ -610,179 +610,186 @@ impl<Game: Oracle> Component for Client<Game> {
                         { " take on minesweeper" }
                     </h2>
                     <p>
-                        { "Begin by clicking any tile, and a patch of safe tiles will be revealed. When a revealed tile displays a number, that indicates how many of its adjacent tiles (including diagonals) contain mines, which you must avoid revealing. The total number of safe tiles that remain to be revealed is shown at the top right of the minefield. Each time you reveal a safe tile, you'll gain information that helps you find more safe tiles. To win, you must reveal every safe tile without revealing a single mine." }
+                        { "Begin by clicking any tile to reveal a patch of safe tiles. When a revealed tile displays a number, that indicates how many of its adjacent tiles (including diagonals) contain mines, which must be avoided. The remaining number of unrevealed safe tiles is shown at the top right. Reveal them all to win. " }
+                        <strong> { "Every game can be won with logic alone (no guessing needed)." } </strong>
                     </p>
                     <p>
-                        { "You may find it helpful to place flags (by right-clicking) to mark the tiles that you know contain mines. The number of unplaced flags (which is initially equal to the total number of mines) is shown at the top left of the minefield. Flagging is entirely optional, but it enables you to chord, where if you click a number tile whose adjacent mines are all flagged, you'll instantly reveal the rest of its adjacent tiles. Note, though, that if you mistakenly flag a safe tile, then chording may cause a mine to be revealed." }
+                        { "If you've determined that a particular tile contains a mine, you may flag that tile by right-clicking it (or by holding it on a touchscreen). Flagging is entirely optional, but it enables you to chord, where if you click a number tile that has the appropriate number of adjacent tiles flagged, this will instantly reveal the rest of its adjacent tiles (which are presumably safe)." }
                     </p>
                     <p>
-                        { "When the game is over, quickly start a new game by clicking a tile with both mouse buttons simultaneously." }
+                        { "When the game is over, you may quickly start a new game by clicking any tile with both mouse buttons simultaneously." }
                     </p>
-                    <h2>
-                        { "Gameplay" }
-                    </h2>
-                    <p class={if self.game.as_ref().map(Game::status).is_some_and(GameStatus::is_ongoing) { "text-red" } else { "hidden" }}>
-                        { "Warning: changing gameplay options will start a new game." }
-                    </p>
-                    <ul>
-                        <li>
-                            <label>
-                                { "Grid: " }
-                                <select name="grid" onchange={scope.callback(|e: Event| {
-                                    Msg::SetGridConfig(
-                                        serde_json::from_str(
-                                            &e.target_unchecked_into::<HtmlSelectElement>().value()
-                                        )
-                                        .unwrap(),
-                                    )
-                                })}> {
-                                    for GridConfig::standard_configs()
-                                        .into_iter()
-                                        .map(|config| (FloatOrd(config.mine_density()), config))
-                                        .chain([
-                                            (
-                                                FloatOrd(GridConfig::default().mine_density()),
-                                                GridConfig::default(),
-                                            ),
-                                            (
-                                                FloatOrd(self.game_config.grid_config.mine_density()),
-                                                self.game_config.grid_config,
-                                            ),
-                                        ])
-                                        .collect::<BTreeMap<FloatOrd<f64>, GridConfig>>()
-                                        .into_values()
-                                        .map(|config| html! {
-                                            <option value={serde_json::to_string(&config).unwrap()}
-                                                    selected={config == self.game_config.grid_config}>
-                                                { config.to_string() }
-                                            </option>
-                                        })
-                                    } </select>
-                            </label>
-                        </li>
-                        <li>
-                            { "Mode: "}
-                            <label>
-                                <input
-                                    type="radio"
-                                    name="mode"
-                                    onclick={scope.callback(|_| Msg::SetGameMode(GameMode::Normal))}
-                                    checked={self.game_config.mode == GameMode::Normal} />
-                                <span> { "Normal " } </span>
-                            </label>
-                            <label>
-                                <input
-                                    type="radio"
-                                    name="mode"
-                                    onclick={scope.callback(|_| Msg::SetGameMode(GameMode::Autopilot))}
-                                    checked={self.game_config.mode == GameMode::Autopilot} />
-                                { "Autopilot " }
-                            </label>
-                            <label>
-                                <input
-                                    type="radio"
-                                    name="mode"
-                                    onclick={scope.callback(|_| Msg::SetGameMode(GameMode::Mindless))}
-                                    checked={self.game_config.mode == GameMode::Mindless} />
-                                { "Mindless " }
-                            </label>
-                            <ul>
-                                <li> { "Autopilot mode auto-flags tiles that are clearly mines and auto-reveals tiles that are clearly safe, effectively distilling the game down to its most challenging aspects." } </li>
-                                <li> { "Mindless mode does the opposite, ensuring that the game is easy from start to finish." } </li>
-                            </ul>
-                        </li>
-                        <li>
-                            <label>
-                                { "Punish guessing: " }
-                                <input
-                                    type="checkbox"
-                                    name="punish_guessing"
-                                    checked={self.game_config.punish_guessing}
-                                    onchange={scope.callback(|e: Event| {
-                                        Msg::SetPunishGuessing(
-                                            e.target_unchecked_into::<HtmlInputElement>().checked()
-                                        )
-                                    })} />
-                            </label>
+                    <div id="options">
+                        <div>
+                            <h3>
+                                { "Gameplay" }
+                            </h3>
+                            <p class={if self.game.as_ref().map(Game::status).is_some_and(GameStatus::is_ongoing) { "text-red" } else { "hidden" }}>
+                                { "Warning: changing gameplay options will start a new game." }
+                            </p>
                             <ul>
                                 <li>
-                                    { "If you reveal a tile (after your first click) that " }
-                                    <em> { "can" } </em>
-                                    { " contain a mine, then this ensures that it " }
-                                    <em> { "does" } </em>
-                                    { " contain a mine, effectively removing all luck from the game. Highly recommended." }
+                                    <label>
+                                        { "Grid: " }
+                                        <select name="grid" onchange={scope.callback(|e: Event| {
+                                            Msg::SetGridConfig(
+                                                serde_json::from_str(
+                                                    &e.target_unchecked_into::<HtmlSelectElement>().value()
+                                                )
+                                                .unwrap(),
+                                            )
+                                        })}> {
+                                            for GridConfig::standard_configs()
+                                                .into_iter()
+                                                .map(|config| (FloatOrd(config.mine_density()), config))
+                                                .chain([
+                                                    (
+                                                        FloatOrd(GridConfig::default().mine_density()),
+                                                        GridConfig::default(),
+                                                    ),
+                                                    (
+                                                        FloatOrd(self.game_config.grid_config.mine_density()),
+                                                        self.game_config.grid_config,
+                                                    ),
+                                                ])
+                                                .collect::<BTreeMap<FloatOrd<f64>, GridConfig>>()
+                                                .into_values()
+                                                .map(|config| html! {
+                                                    <option value={serde_json::to_string(&config).unwrap()}
+                                                            selected={config == self.game_config.grid_config}>
+                                                        { config.to_string() }
+                                                    </option>
+                                                })
+                                            } </select>
+                                    </label>
+                                </li>
+                                <li>
+                                    { "Mode: "}
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="mode"
+                                            onclick={scope.callback(|_| Msg::SetGameMode(GameMode::Normal))}
+                                            checked={self.game_config.mode == GameMode::Normal} />
+                                        <span> { "Normal " } </span>
+                                    </label>
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="mode"
+                                            onclick={scope.callback(|_| Msg::SetGameMode(GameMode::Autopilot))}
+                                            checked={self.game_config.mode == GameMode::Autopilot} />
+                                        { "Autopilot " }
+                                    </label>
+                                    <label>
+                                        <input
+                                            type="radio"
+                                            name="mode"
+                                            onclick={scope.callback(|_| Msg::SetGameMode(GameMode::Mindless))}
+                                            checked={self.game_config.mode == GameMode::Mindless} />
+                                        { "Mindless " }
+                                    </label>
+                                    <ul>
+                                        <li> { "Autopilot instantly flags tiles that are clearly mines and instantly reveals tiles that are clearly safe, effectively fast-forwarding you past the easy parts of the game." } </li>
+                                        <li> { "Mindless mode does the opposite, ensuring that the game is easy from start to finish." } </li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    <label>
+                                        { "Punish guessing: " }
+                                        <input
+                                            type="checkbox"
+                                            name="punish_guessing"
+                                            checked={self.game_config.punish_guessing}
+                                            onchange={scope.callback(|e: Event| {
+                                                Msg::SetPunishGuessing(
+                                                    e.target_unchecked_into::<HtmlInputElement>().checked()
+                                                )
+                                            })} />
+                                    </label>
+                                    <ul>
+                                        <li>
+                                            { "If you reveal a tile that " }
+                                            <em> { "can" } </em>
+                                            { " contain a mine, this ensures it " }
+                                            <em> { "does" } </em>
+                                            { " contain a mine. This will also punish you for using the no-guessing-required guarantee as a basis for inference." }
+                                        </li>
+                                    </ul>
                                 </li>
                             </ul>
-                        </li>
-                    </ul>
-                    <h2>
-                        { "Theme" }
-                    </h2>
-                    <ul>
-                        <li>
-                            <label>
-                                { "Show timer: " }
-                                <select name="show_timer" onchange={scope.callback(|e: Event| {
-                                    Msg::SetShowTimer(
-                                        serde_json::from_str(
-                                            &e.target_unchecked_into::<HtmlSelectElement>().value()
-                                        )
-                                        .unwrap(),
-                                    )
-                                })}> {
-                                    for ShowTimer::iter()
-                                        .map(|show_timer| html! {
-                                            <option value={serde_json::to_string(&show_timer).unwrap()}
-                                                    selected={show_timer == self.theme.show_timer}>
-                                                { show_timer.to_string() }
-                                            </option>
-                                        })
-                                    } </select>
-                            </label>
-                        </li>
-                        <li>
-                            <label>
-                                { "Numbers style: " }
-                                <select name="numbers_style" onchange={scope.callback(|e: Event| {
-                                    Msg::SetNumbersStyle(
-                                        serde_json::from_str(
-                                            &e.target_unchecked_into::<HtmlSelectElement>().value()
-                                        )
-                                        .unwrap(),
-                                    )
-                                })}> {
-                                    for NumbersStyle::iter()
-                                        .map(|style| html! {
-                                            <option value={serde_json::to_string(&style).unwrap()}
-                                                    selected={style == self.theme.numbers_style}>
-                                                { style.to_string() }
-                                            </option>
-                                        })
-                                    } </select>
-                            </label>
-                        </li>
-                        <li>
-                            <label>
-                                { "Subtract flags: " }
-                                <input
-                                    type="checkbox"
-                                    name="subtract_flags"
-                                    checked={self.theme.subtract_flags}
-                                    onchange={scope.callback(|e: Event|
-                                        Msg::SetSubtractFlags(
-                                            e.target_unchecked_into::<HtmlInputElement>().checked()
-                                        )
-                                    )}/>
-                            </label>
+                        </div>
+                        <div>
+                            <h3>
+                                { "Appearance" }
+                            </h3>
                             <ul>
                                 <li>
-                                    { "This subtracts the number of adjacent flags from the number displayed on each revealed tile, so that you can see at a glance how many flags you have left to place." }
+                                    <label>
+                                        { "Show timer: " }
+                                        <select name="show_timer" onchange={scope.callback(|e: Event| {
+                                            Msg::SetShowTimer(
+                                                serde_json::from_str(
+                                                    &e.target_unchecked_into::<HtmlSelectElement>().value()
+                                                )
+                                                .unwrap(),
+                                            )
+                                        })}> {
+                                            for ShowTimer::iter()
+                                                .map(|show_timer| html! {
+                                                    <option value={serde_json::to_string(&show_timer).unwrap()}
+                                                            selected={show_timer == self.theme.show_timer}>
+                                                        { show_timer.to_string() }
+                                                    </option>
+                                                })
+                                            } </select>
+                                    </label>
+                                </li>
+                                <li>
+                                    <label>
+                                        { "Numbers style: " }
+                                        <select name="numbers_style" onchange={scope.callback(|e: Event| {
+                                            Msg::SetNumbersStyle(
+                                                serde_json::from_str(
+                                                    &e.target_unchecked_into::<HtmlSelectElement>().value()
+                                                )
+                                                .unwrap(),
+                                            )
+                                        })}> {
+                                            for NumbersStyle::iter()
+                                                .map(|style| html! {
+                                                    <option value={serde_json::to_string(&style).unwrap()}
+                                                            selected={style == self.theme.numbers_style}>
+                                                        { style.to_string() }
+                                                    </option>
+                                                })
+                                            } </select>
+                                    </label>
+                                </li>
+                                <li>
+                                    <label>
+                                        { "Subtract flags: " }
+                                        <input
+                                            type="checkbox"
+                                            name="subtract_flags"
+                                            checked={self.theme.subtract_flags}
+                                            onchange={scope.callback(|e: Event|
+                                                Msg::SetSubtractFlags(
+                                                    e.target_unchecked_into::<HtmlInputElement>().checked()
+                                                )
+                                            )}/>
+                                    </label>
+                                    <ul>
+                                        <li>
+                                            { "This subtracts the number of adjacent flags from the number displayed on each revealed tile." }
+                                        </li>
+                                    </ul>
                                 </li>
                             </ul>
-                        </li>
-                    </ul>
+                        </div>
+                    </div>
                     <form method="dialog">
-                        <button id="close-dialog" onclick={scope.callback(|_| Msg::CloseDialog)}> { "✕" }</button>
+                        <button class="close-dialog" onclick={scope.callback(|_| Msg::CloseDialog)}> { "✕" }</button>
                     </form>
                 </div>
             </dialog>
