@@ -1,3 +1,2 @@
 [toolchain]
-channel = "beta"                     # For rust 1.75 - Move to stable when it is released
 targets = ["wasm32-unknown-unknown"]
